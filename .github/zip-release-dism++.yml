@@ -1,0 +1,53 @@
+name: Build and Release Dism++
+
+on:
+  push:
+    tags:
+      - 'v*'  # Déclenche le workflow lorsqu'un tag est poussé (ex: v1.0)
+
+jobs:
+  build:
+    runs-on: windows-latest  # Utilise une machine Windows pour compiler
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2  # Clone le code du dépôt
+
+      - name: Set up .NET environment
+        uses: actions/setup-dotnet@v3  # Configuration de l'environnement .NET
+        with:
+          dotnet-version: '6.x'  # Spécifiez la version de .NET utilisée par Dism++
+
+      - name: Build the project
+        run: dotnet publish -c Release -o output  # Compilation en mode Release
+
+      - name: Create .zip file
+        run: |
+          Compress-Archive -Path output\* -DestinationPath DismPlusPlus.zip
+        shell: pwsh  # Utilisation de PowerShell pour la commande
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: DismPlusPlus
+          path: DismPlusPlus.zip
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: DismPlusPlus
+
+      - name: Create GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ github.ref_name }}
+          release_name: "Release ${{ github.ref_name }}"
+          draft: false
+          prerelease: false
+          files: DismPlusPlus.zip
